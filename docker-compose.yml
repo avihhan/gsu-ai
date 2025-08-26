@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  syllabus-processor:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # AWS Configuration
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      
+      # S3 Configuration
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      
+      # RDS Configuration
+      - RDS_HOST=${RDS_HOST}
+      - RDS_PORT=${RDS_PORT}
+      - RDS_DB=${RDS_DB}
+      - RDS_USER=${RDS_USER}
+      - RDS_PASSWORD=${RDS_PASSWORD}
+      - RDS_SSL_MODE=${RDS_SSL_MODE}
+      
+      # OpenSearch Configuration
+      - OPENSEARCH_ENDPOINT=${OPENSEARCH_ENDPOINT}
+      - OPENSEARCH_USERNAME=${OPENSEARCH_USERNAME}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_PASSWORD}
+      - OPENSEARCH_INDEX=${OPENSEARCH_INDEX}
+      
+      # Bedrock Configuration
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID}
+      - BEDROCK_REGION=${BEDROCK_REGION}
+      
+      # Application Configuration
+      - APP_ENV=${APP_ENV}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE}
+      - SUPPORTED_EXTENSIONS=${SUPPORTED_EXTENSIONS}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+    volumes:
+      - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Optional: Local PostgreSQL for development (if not using RDS)
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=${RDS_DB}
+      - POSTGRES_USER=${RDS_USER}
+      - POSTGRES_PASSWORD=${RDS_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RDS_USER} -d ${RDS_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - local-dev
+
+volumes:
+  postgres_data:
